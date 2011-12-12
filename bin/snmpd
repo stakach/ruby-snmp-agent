@@ -85,226 +85,226 @@ require 'fileutils'
 require 'snmp/agent'
 
 class RubySnmpd  # :nodoc:
-	VERSION = "0.1"
-	
-	def main(*argv)
-		@options = {
-			:printhelp => false,
-			:printversion => false,
-			:logfile => '/var/log/ruby-snmpd.log',
-			:pidfile => '/var/run/ruby-snmpd.pid',
-			:background => true,
-			:port => 161,
-			:user => 'rubysnmpd',
-			:plugindirs => ['/usr/lib/ruby/1.8/snmp/agent_plugins'],
-			:background => true,
-			:debug => false
-		}
+  VERSION = "0.1"
 
-		cmdopts.parse(*argv)
+  def main(*argv)
+    @options = {
+      :printhelp => false,
+      :printversion => false,
+      :logfile => '/var/log/ruby-snmpd.log',
+      :pidfile => '/var/run/ruby-snmpd.pid',
+      :background => true,
+      :port => 161,
+      :user => 'rubysnmpd',
+      :plugindirs => ['/usr/lib/ruby/1.8/snmp/agent_plugins'],
+      :background => true,
+      :debug => false
+    }
 
-		if @options[:printhelp] or @options[:printversion]
-			puts "Ruby snmpd, version #{RubySnmpd::VERSION}\n\n"
-		end
-		
-		if @options[:printhelp]
-			puts cmdopts
-		end
-	
-		if @options[:printhelp] or @options[:printversion]
-			exit 0
-		end
+    cmdopts.parse(*argv)
 
-		@pidfile = Pidlock.new(@options[:pidfile])
+    if @options[:printhelp] or @options[:printversion]
+      puts "Ruby snmpd, version #{RubySnmpd::VERSION}\n\n"
+    end
 
-		if @pidfile.locked?
-			puts "Another ruby-snmpd process is running; exiting"
-			exit 1
-		end
-	
-		@log = Logger.new(@options[:logfile])
-		@log.level = @options[:debug] ? Logger::DEBUG : Logger::INFO
+    if @options[:printhelp]
+      puts cmdopts
+    end
 
-		a = SNMP::Agent.new(:port => @options[:port],
-		                    :logger => @log)
+    if @options[:printhelp] or @options[:printversion]
+      exit 0
+    end
 
-		begin
-			boot(a)
-		rescue SystemExit
-			@log.info("Exiting")
-		rescue Exception => e
-			@log.error("Unhandled exception: #{e.class}: #{e.message}")
-			@log.error("Backtrace follows:")
-			e.backtrace.each { |l| @log.error l }
-		ensure
-			@pidfile.unlock
-		end
-	end
+    @pidfile = Pidlock.new(@options[:pidfile])
 
-	def cmdopts
-		opts = OptionParser.new
-	
-		opts.on('-h', '--help',
-		        "Print usage information") { @options[:printhelp] = true }
-		opts.on('-V', '--version',
-		        "Print version information and exit") { @options[:printversion] = true }
-		opts.on('-p', '--port PORT',
-		        "Specify the port for the agent to listen on",
-		        "(default: #{@options[:port]})",
-		        Integer) { |v| @options[:port] = v }
-		opts.on('-L', '--logfile LOGFILE',
-				  "Specify the logfile to use",
-		        "(default: #{@options[:logfile]})",
-		        String) { |v| @options[:logfile] = v }
-		opts.on('-P', '--pidfile PIDFILE',
-		        "File to write the agent's process ID to",
-			     "(default: #{@options[:pidfile]})",
-		        String) { |v| @options[:pidfile] = v }
-		opts.on('-I', '--include dir,dir', '--plugindirs dir,dir',
-		        "Specify the director(y,ies} to load plugins",
-		        "from",
-		        "(default: #{@options[:plugindirs].join(',')})",
-		        Array) { |v| @options[:plugindirs] = v }
-		opts.on('-u', '--user USERNAME',
-		        "The user to run the agent as",
-		        "(default: #{@options[:user]})",
-		        String) { |v| @options[:user] = v }
-		opts.on('-F', '--foreground',
-		        "Leave the agent running in the foreground") { @options[:background] = false }
-		opts.on('-d', '--debug',
-		        "Debugging mode.  Stay in the foreground,",
-		        "log to stderr instead of the specified",
-		        "logfile, and print lots of debugging",
-		        "information.") do
-		        	@options[:background] = false
-		        	@options[:debug] = true
-		        	@options[:logfile] = $stderr
-				  end
+    if @pidfile.locked?
+      puts "Another ruby-snmpd process is running; exiting"
+      exit 1
+    end
 
-		opts
-	end
+    @log = Logger.new(@options[:logfile])
+    @log.level = @options[:debug] ? Logger::DEBUG : Logger::INFO
 
-	def boot(agent)
-		if @options[:background]
-			background
+    a = SNMP::Agent.new(:port => @options[:port],
+                        :logger => @log)
 
-			trap("SIGINT") { agent.shutdown; @pidfile.unlock }
-			trap("SIGTERM") { agent.shutdown; @pidfile.unlock }
-			trap("SIGHUP", "IGNORE")
-		else
-			trap("SIGINT") { agent.shutdown }
-		end
-		
-		agent.open_socket
-		drop_privs(@options[:user]) if Process.euid == 0
-		@options[:plugindirs].each { |dir| agent.add_plugin_dir(dir) if File.directory? dir }
-		agent.start
-	end
+    begin
+      boot(a)
+    rescue SystemExit
+      @log.info("Exiting")
+    rescue Exception => e
+      @log.error("Unhandled exception: #{e.class}: #{e.message}")
+      @log.error("Backtrace follows:")
+      e.backtrace.each { |l| @log.error l }
+    ensure
+      @pidfile.unlock
+    end
+  end
 
-	def drop_privs(user)
-		euid = nil
-		File.open("/etc/passwd") do |fd|
-			fd.each_line do |l|
-				if l =~ /^#{user}:[^:]*:(\d+)/
-					euid = $1.to_i
-				end
-			end
-		end
+  def cmdopts
+    opts = OptionParser.new
 
-		if euid.nil?
-			@log.error("Failed to find UID for #{user}; exiting")
-			exit 2
-		end
+    opts.on('-h', '--help',
+            "Print usage information") { @options[:printhelp] = true }
+    opts.on('-V', '--version',
+            "Print version information and exit") { @options[:printversion] = true }
+    opts.on('-p', '--port PORT',
+            "Specify the port for the agent to listen on",
+            "(default: #{@options[:port]})",
+            Integer) { |v| @options[:port] = v }
+    opts.on('-L', '--logfile LOGFILE',
+          "Specify the logfile to use",
+            "(default: #{@options[:logfile]})",
+            String) { |v| @options[:logfile] = v }
+    opts.on('-P', '--pidfile PIDFILE',
+            "File to write the agent's process ID to",
+           "(default: #{@options[:pidfile]})",
+            String) { |v| @options[:pidfile] = v }
+    opts.on('-I', '--include dir,dir', '--plugindirs dir,dir',
+            "Specify the director(y,ies} to load plugins",
+            "from",
+            "(default: #{@options[:plugindirs].join(',')})",
+            Array) { |v| @options[:plugindirs] = v }
+    opts.on('-u', '--user USERNAME',
+            "The user to run the agent as",
+            "(default: #{@options[:user]})",
+            String) { |v| @options[:user] = v }
+    opts.on('-F', '--foreground',
+            "Leave the agent running in the foreground") { @options[:background] = false }
+    opts.on('-d', '--debug',
+            "Debugging mode.  Stay in the foreground,",
+            "log to stderr instead of the specified",
+            "logfile, and print lots of debugging",
+            "information.") do
+              @options[:background] = false
+              @options[:debug] = true
+              @options[:logfile] = $stderr
+          end
 
-		File.chown(euid, 0, @options[:pidfile]) if File.exists?(@options[:pidfile])
-		
-		Process::UID.change_privilege(euid)
-	end
-	
-	def background
-		pid = fork
-		if pid.nil?
-			$stdout.close
-			$stderr.close
-			$stdin.close
-		else
-			unless @pidfile.lock(:for_pid => pid)
-				kill('QUIT', pid)
-				puts "Another ruby-snmpd process is running; exiting"
-				exit 1
-			end
-			exit 0
-		end
-	end
+    opts
+  end
+
+  def boot(agent)
+    if @options[:background]
+      background
+
+      trap("SIGINT") { agent.shutdown; @pidfile.unlock }
+      trap("SIGTERM") { agent.shutdown; @pidfile.unlock }
+      trap("SIGHUP", "IGNORE")
+    else
+      trap("SIGINT") { agent.shutdown }
+    end
+
+    agent.open_socket
+    drop_privs(@options[:user]) if Process.euid == 0
+    @options[:plugindirs].each { |dir| agent.add_plugin_dir(dir) if File.directory? dir }
+    agent.start
+  end
+
+  def drop_privs(user)
+    euid = nil
+    File.open("/etc/passwd") do |fd|
+      fd.each_line do |l|
+        if l =~ /^#{user}:[^:]*:(\d+)/
+          euid = $1.to_i
+        end
+      end
+    end
+
+    if euid.nil?
+      @log.error("Failed to find UID for #{user}; exiting")
+      exit 2
+    end
+
+    File.chown(euid, 0, @options[:pidfile]) if File.exists?(@options[:pidfile])
+
+    Process::UID.change_privilege(euid)
+  end
+
+  def background
+    pid = fork
+    if pid.nil?
+      $stdout.close
+      $stderr.close
+      $stdin.close
+    else
+      unless @pidfile.lock(:for_pid => pid)
+        kill('QUIT', pid)
+        puts "Another ruby-snmpd process is running; exiting"
+        exit 1
+      end
+      exit 0
+    end
+  end
 end
 
 class Pidlock
-	attr_reader :lockfile
-	
-	def initialize(lockfile)
-		@lockfile = lockfile
-	end
-	
-	def locked?
-		clear_if_stale
-		File.exists? @lockfile
-	end
-	
-	def mine?
-		Process.pid == lock_pid
-	end
+  attr_reader :lockfile
 
-	def anonymous?
-		return false unless File.exists?(@lockfile)
-		File.read(@lockfile) == ""
-	end
-	
-	def lock(opts = {})
-		opts = { :anonymous => false,
-		         :for_pid => Process.pid
-		       }.merge(opts)
+  def initialize(lockfile)
+    @lockfile = lockfile
+  end
 
-		if locked?
-			mine?
-		else
-			if opts[:anonymous]
-				FileUtils.touch(@lockfile)
-			else
-				File.open(@lockfile, "w") { |fd| fd.puts(opts[:for_pid]) }
-			end
-			true
-		end
-	end
-	
-	def unlock(opts = {})
-		opts = {:anonymous => false}.merge(opts)
+  def locked?
+    clear_if_stale
+    File.exists? @lockfile
+  end
 
-		if mine? or (opts[:anonymous] and anonymous?)
-			File.unlink(@lockfile)
-			true
-		else
-			false
-		end
-	end
+  def mine?
+    Process.pid == lock_pid
+  end
 
-	private
-	def lock_pid
-		if File.exists? @lockfile
-			File.read(@lockfile).to_i
-		else
-			nil
-		end
-	end
+  def anonymous?
+    return false unless File.exists?(@lockfile)
+    File.read(@lockfile) == ""
+  end
 
-	def clear_if_stale
-		return if lock_pid.nil?
-		
-		begin
-			Process.kill(0, lock_pid)
-		rescue Errno::ESRCH
-			File.unlink(@lockfile)
-		end
-	end
+  def lock(opts = {})
+    opts = { :anonymous => false,
+             :for_pid => Process.pid
+           }.merge(opts)
+
+    if locked?
+      mine?
+    else
+      if opts[:anonymous]
+        FileUtils.touch(@lockfile)
+      else
+        File.open(@lockfile, "w") { |fd| fd.puts(opts[:for_pid]) }
+      end
+      true
+    end
+  end
+
+  def unlock(opts = {})
+    opts = {:anonymous => false}.merge(opts)
+
+    if mine? or (opts[:anonymous] and anonymous?)
+      File.unlink(@lockfile)
+      true
+    else
+      false
+    end
+  end
+
+  private
+  def lock_pid
+    if File.exists? @lockfile
+      File.read(@lockfile).to_i
+    else
+      nil
+    end
+  end
+
+  def clear_if_stale
+    return if lock_pid.nil?
+
+    begin
+      Process.kill(0, lock_pid)
+    rescue Errno::ESRCH
+      File.unlink(@lockfile)
+    end
+  end
 end
 
 RubySnmpd.new.main(*ARGV)
