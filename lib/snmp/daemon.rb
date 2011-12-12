@@ -29,32 +29,32 @@ require 'logger'
 module SNMP  # :nodoc:
 
 ##
-# = SNMP Agent skeleton
+# = SNMP Daemon skeleton
 #
-# Objects of this class are capable of acting as SNMP agents -- that is,
+# Objects of this class are capable of acting as SNMP daemons -- that is,
 # receiving SNMP PDUs and (possibly) returning data as a result of those
 # requests.
 #
-# We call this class a skeleton, though, since as it stands this agent won't
+# We call this class a skeleton, though, since as it stands this daemon won't
 # do much of anything -- it only has support for the most basic of system
 # information (sysDescr, sysUptime, sysContact, sysName, and sysLocation).
 # In order to get more interesting data out of it, you'll need to define
 # code to examine the host machine and it's environment and return data.
 #
 # What values get returned is determined by "plugins", small chunks of code
-# that return values that the agent can then send back to the requestor.
+# that return values that the daemon can then send back to the requestor.
 #
-# == A simple example agent
+# == A simple example daemon
 #
-#    require 'snmp/agent'
+#    require 'snmp/daemon'
 #
-#    agent = SNMP::Agent.new(:port => 16161, :logger => Logger.new(STDOUT))
-#    agent.add_plugin('1.3.6.1.2.1.25.1.1.0') do
+#    daemon = SNMP::Daemon.new(:port => 16161, :logger => Logger.new(STDOUT))
+#    daemon.add_plugin('1.3.6.1.2.1.25.1.1.0') do
 #      SNMP::TimeTicks.new(File.read('/proc/uptime').split(' ')[0].to_f * 100).to_i)
 #    end
-#    agent.start()
+#    daemon.start()
 #
-# This agent will respond to requests for the given OID (hrSystemUptime in
+# This daemon will respond to requests for the given OID (hrSystemUptime in
 # this case, as it happens) and return the number of time ticks as read from
 # the /proc/uptime file.  In this plugin, we've defined the exact and
 # complete OID that we want to return the value of, but that's by no means
@@ -73,7 +73,7 @@ module SNMP  # :nodoc:
 # The basic layout of all plugins is the same -- you map a base OID to a
 # chunk of code, and then any requests for OIDs in that subtree cause the
 # code to be executed to determine the value (or lack thereof).  You use
-# SNMP::Agent#add_plugin to add a new plugin. This method takes a base OID
+# SNMP::Daemon#add_plugin to add a new plugin. This method takes a base OID
 # (as a string or an array of integers) and a block of code to be run when
 # the requested OID matches the given base OID.
 #
@@ -85,16 +85,16 @@ module SNMP  # :nodoc:
 # For example, if you want OID .1.2.3 to return the single value 42, you
 # would do something like this:
 #
-#    agent = SNMP::Agent.new
-#    agent.add_plugin('1.2.3') { 42 }
+#    daemon = SNMP::Daemon.new
+#    daemon.add_plugin('1.2.3') { 42 }
 #
-# Internally, when a Get request for the OID .1.2.3 is received, the agent
+# Internally, when a Get request for the OID .1.2.3 is received, the daemon
 # will find the plugin, run it, and return a PDU containing 'INTEGER: 42'.
 # Any request for an OID below .1.2.3 will be answered with NoSuchObject.
 #
 # If you want to return a list of dwarves, you could do this:
 #
-#    agent.add_plugin('1.2.4') { %w{sleepy grumpy doc crazy hungry} }
+#    daemon.add_plugin('1.2.4') { %w{sleepy grumpy doc crazy hungry} }
 #
 # In this case, requesting the OID '1.2.4' will get you NoSuchObject, but
 # requesting '1.2.4.0' will get you the OCTET STRING 'sleepy', and
@@ -105,7 +105,7 @@ module SNMP  # :nodoc:
 # of an array.  So a list of square roots, indexed by the squared value,
 # might look like this:
 #
-#    agent.add_plugin('1.2.5') { {1 => 1, 4 => 2, 9 => 3, 16 => 4, 25 => 5} }
+#    daemon.add_plugin('1.2.5') { {1 => 1, 4 => 2, 9 => 3, 16 => 4, 25 => 5} }
 #
 # Now, if you get '1.2.5.9', you'll get the INTEGER 3, but if you get either
 # of '1.2.5.8' or '1.2.5.10' you'll get noSuchObject.
@@ -113,7 +113,7 @@ module SNMP  # :nodoc:
 # More complicated tree structures are possible, too -- such as a
 # two-dimensional "multiplication table", like so:
 #
-#    agent.add_plugin('1.2.6') { [[0, 0, 0, 0, 0, 0],
+#    daemon.add_plugin('1.2.6') { [[0, 0, 0, 0, 0, 0],
 #                                 [0, 1, 2, 3, 4, 5],
 #                                 [0, 2, 4, 6, 8, 10],
 #                                 [0, 3, 6, 9, 12, 15],
@@ -123,7 +123,7 @@ module SNMP  # :nodoc:
 #                              }
 #
 # Now you can get the product of any two numbers between 0 and 5 by simply
-# doing a get on your agent for '1.2.6.n.m' -- or you could use a
+# doing a get on your daemon for '1.2.6.n.m' -- or you could use a
 # calculator.
 #
 # The real value of plugins isn't static data like the above examples, it's
@@ -151,11 +151,11 @@ module SNMP  # :nodoc:
 # There is a limted amount of type interpolation in the plugin handler.
 # At present, integer values will be kept as integers, and most everything
 # else will be converted to an OCTET STRING.  If you have a particular need
-# to return values of particular SNMP types, the agent will pass-through any
+# to return values of particular SNMP types, the daemon will pass-through any
 # SNMP value objects that are created, so if you just *had* to return a
 # Gauge32 for a particular OID, you could do:
 #
-#    agent.add_plugin('1.2.3') { SNMP::Gauge32.new(42) }
+#    daemon.add_plugin('1.2.3') { SNMP::Gauge32.new(42) }
 #
 # === Caching plugin data
 #
@@ -166,16 +166,16 @@ module SNMP  # :nodoc:
 # tree is going to be completely recreated for every element walked in that
 # tree).
 #
-# To prevent this problem, the SNMP agent provides a fairly simple caching
+# To prevent this problem, the SNMP daemon provides a fairly simple caching
 # mechanism within itself.  If you return the data from your plugin as a
 # hash, you can add an extra element to that hash, with a key of
 # <tt>:cache</tt>, which should have a value of how many seconds you want
-# the agent to retain your data for before re-running the plugin.  So, a
+# the daemon to retain your data for before re-running the plugin.  So, a
 # simple cached data tree might look like:
 #
 #   {:cache => 30, 0 => [0, 1, 2], 1 => ['a', 'b', 'c']}
 #
-# So the agent will cache the given data (<tt>{0 => [...], 1 => [...]}</tt>) for
+# So the daemon will cache the given data (<tt>{0 => [...], 1 => [...]}</tt>) for
 # 30 seconds before running the plugin again to get a new set of data.
 #
 # How long should you cache data for?  That's up to you.  The tradeoffs are
@@ -208,7 +208,7 @@ module SNMP  # :nodoc:
 # request that caused your plugin to be run, you can provide an argument to
 # your block and have the community put in there.  For instance:
 #
-#   agent.add_plugin('1.2.3.4') { |c| c }
+#   daemon.add_plugin('1.2.3.4') { |c| c }
 #
 # Will return the community name passed to any request for the OID .1.2.3.4.
 #
@@ -216,12 +216,12 @@ module SNMP  # :nodoc:
 # together at present -- if you return a value and ask for it to be cached,
 # it will be cached regardless of the community that is used in subsequent
 # requests.  Thus, if you have a need to examine the community in your plugin,
-# don't ask the agent to cache the response.
+# don't ask the daemon to cache the response.
 #
 # === "Declining" a request
 #
 # If you're writing a plugin that, in some instances, should completely fail
-# to respond, you can raise a DontReplyException.  This will cause the agent
+# to respond, you can raise a DontReplyException.  This will cause the daemon
 # to not send a response PDU.  Note the difference between raising
 # DontReplyException and returning nil -- the latter will cause a
 # NoSuchObject response, while the former will make the server look like a
@@ -249,37 +249,37 @@ module SNMP  # :nodoc:
 #   defining a plugin is actually fairly confusing.
 #
 # - Any file in the plugin directory which ends in <tt>.rb</tt> is evaluated
-#   as ruby code, in the context of the SNMP::Agent object which is running
+#   as ruby code, in the context of the SNMP::Daemon object which is running
 #   <tt>add_plugin_dir</tt>.  This means that any methods or classes defined in
-#   the file are in the scope of the SNMP::Agent object itself.  To
+#   the file are in the scope of the SNMP::Daemon object itself.  To
 #   actually add a plugin in this instance, you need to run
 #   <tt>self.add_plugin</tt> explicitly. This method of defining plugins
 #   externally is preferred, since although it is more verbose, it is much
 #   more flexible and lends itself to better modularity of plugins.
 #
-# == Proxying to other SNMP agents
+# == Proxying to other SNMP daemons
 #
-# Although the Ruby SNMP agent is quite versatile, it currently lacks a lot
+# Although the Ruby SNMP daemon is quite versatile, it currently lacks a lot
 # of the standard MIB trees that we know and love.  This means, of course,
 # that if you want to walk standard trees, like load averages, disk
 # partitions, and network statistics, you'll need to be running another SNMP
-# agent on your machines in addition to this agent.  Rather than doing the
+# daemon on your machines in addition to this agent.  Rather than doing the
 # dirty and making you remember whatever non-standard port you may have put
-# one (or both) of the agents on, you can instead proxy the other agent
-# through the Ruby SNMP agent.
+# one (or both) of the daemons on, you can instead proxy the other agent
+# through the Ruby SNMP daemon.
 #
 # The syntax for this is very simple:
 #
-#   agent.add_proxy(oid, host, port)
+#   daemon.add_proxy(oid, host, port)
 #
 # This simple call will cause any request to any part of the MIB subtree
-# rooted at <oid> to be fulfilled by making an SNMP request to the agent
+# rooted at <oid> to be fulfilled by making an SNMP request to the daemon
 # running on <host> and listening on <port> and returning whatever that
-# agent sends back to us.
+# daemon sends back to us.
 #
 # A (minor) limitation at the moment is that you can't proxy a subtree
-# provided by the backend agent to a different subtree in the Ruby SNMP
-# agent.  I don't consider this to be a major limitation, as -- due to the
+# provided by the backend daemon to a different subtree in the Ruby SNMP
+# daemon.  I don't consider this to be a major limitation, as -- due to the
 # globally-unique and globally-meaningful semantics of the MIB -- you
 # shouldn't have too much call for changing OIDs in proxies.
 #
@@ -288,19 +288,19 @@ module SNMP  # :nodoc:
 # so it may harbour unpleasant corner cases.  Sorry about that.
 #
 
-class Agent  # :doc:
+class Daemon  # :doc:
   DefaultSettings = { :port => 161,
                       :max_packet => 8000,
                       :logger => Logger.new('/dev/null'),
                       :sysContact => "Someone",
-                      :sysName => "Ruby SNMP agent",
+                      :sysName => "Ruby SNMP daemon",
                       :sysLocation => "Unknown",
                       :community => nil
                     }
 
-  # Create a new agent.
+  # Create a new daemon.
   #
-  # You can provide a list of settings to the new agent, as a hash of
+  # You can provide a list of settings to the new daemon, as a hash of
   # symbols and values.  Currently valid settings (and their defaults)
   # are as follows:
   #
@@ -311,12 +311,12 @@ class Agent  # :doc:
   # [:sysContact]  A string to provide when an SNMP request is made for
   #                sysContact.  Default: "Someone"
   # [:sysName]     A string to provide when an SNMP request is made for
-  #                sysName.  Default: "Ruby SNMP agent"
+  #                sysName.  Default: "Ruby SNMP daemon"
   # [:sysLocation] A string to provide when an SNMP request is made for
   #                sysLocation.  Default: "Unknown"
   # [:community]   Either a string or array of strings which specify the
-  #                community/communities which this SNMP agent will respond
-  #                to.  The default is nil, which means that the agent will
+  #                community/communities which this SNMP daemon will respond
+  #                to.  The default is nil, which means that the daemon will
   #                respond to any SNMP PDU, regardless of the community name
   #                encoded in the PDU.
   #
@@ -331,9 +331,9 @@ class Agent  # :doc:
 
     @mib_tree = MibNodeTree.new(:logger => @log)
 
-    agent_start_time = Time.now
+    daemon_start_time = Time.now
     self.add_plugin('1.3.6.1.2.1.1') { {1 => [`uname -a`],
-                                        3 => [SNMP::TimeTicks.new(((Time.now - agent_start_time) * 100).to_i)],
+                                        3 => [SNMP::TimeTicks.new(((Time.now - daemon_start_time) * 100).to_i)],
                                         4 => [settings[:sysContact]],
                                         5 => [settings[:sysName]],
                                         6 => [settings[:sysLocation]]
@@ -350,11 +350,11 @@ class Agent  # :doc:
     @mib_tree.add_node(base_oid, MibNodePlugin.new(:logger => @log, :oid => base_oid, &block))
   end
 
-  # Add a directory full of plugins to the agent.
+  # Add a directory full of plugins to the daemon.
   #
-  # To make it as simple as possible to provide plugins to the SNMP agent,
+  # To make it as simple as possible to provide plugins to the SNMP daemon,
   # you can create a directory and fill it with files containing plugin
-  # code, then tell the agent where to find all that juicy code.
+  # code, then tell the daemon where to find all that juicy code.
   #
   # The files in the plugin directory are simply named after the base OID,
   # and the contents are the code you want to execute, exactly as you would
@@ -400,11 +400,11 @@ class Agent  # :doc:
   # Caution: this method blocks (does not return until it's finished
   # serving SNMP requests).  As a result, you should run it in a separate
   # thread or catch one or more signals so that you can actually call
-  # +shutdown+ to stop the agent.
+  # +shutdown+ to stop the daemon.
   def start
     open_socket if @socket.nil?
 
-    @log.info "SNMP agent running"
+    @log.info "SNMP daemon running"
     @socket.listen do |data|
       begin
         @log.debug "Received #{data.length} bytes"
@@ -470,20 +470,20 @@ class Agent  # :doc:
     end
   end
 
-  # Stop the running agent.
+  # Stop the running daemon.
   #
-  # Close the socket and stop the agent from running.  It can be started again
+  # Close the socket and stop the daemon from running.  It can be started again
   # just by calling +start+ again.  You will, of course, need to be catching
   # signals or be multi-threaded in order to be able to actually call this
   # method, because +start+ itself is a blocking method.
   #
   def shutdown
-    @log.info "SNMP agent stopping"
+    @log.info "SNMP daemon stopping"
     @socket.close
   end
 
   # Open the socket.  Call this early if you want to drop elevated
-  # privileges before starting the agent itself.
+  # privileges before starting the daemon itself.
   def open_socket
     @socket = UDPSocketPool.new(@port)
   end
@@ -896,7 +896,7 @@ class MibNodeValue < MibNode  # :nodoc:
   end
 end
 
-# To signal that the agent received a message that it didn't know how to
+# To signal that the daemon received a message that it didn't know how to
 # handle.
 class UnknownMessageError < StandardError
 end
@@ -995,7 +995,7 @@ class DontReplyException < Exception
 end
 
 if __FILE__ == $0
-  agent = SNMP::Agent.new(:port => 1061, :logger => Logger.new(STDOUT))
-  trap("INT") { agent.shutdown }
-  agent.start
+  daemon = SNMP::Daemon.new(:port => 1061, :logger => Logger.new(STDOUT))
+  trap("INT") { daemon.shutdown }
+  daemon.start
 end
