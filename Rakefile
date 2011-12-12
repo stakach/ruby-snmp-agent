@@ -12,7 +12,7 @@ require 'rake'
 require 'jeweler'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
-  gem.name = "ruby-snmpd"
+  gem.name = "ruby-snmp-agent"
   gem.homepage = "http://theshed.hezmatt.org/rubysnmpd"
   gem.license = "GPL"
   gem.summary = %Q{A Ruby implementation of an SNMP agent}
