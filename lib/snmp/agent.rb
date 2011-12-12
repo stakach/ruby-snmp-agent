@@ -201,7 +201,7 @@ module SNMP  # :nodoc:
 # to cause anyone any problems, however I am aware of the potential problem,
 # and if it causes anyone major grief, please get in touch and we'll work out
 # an alternate solution.
-# 
+#
 # === Communities in Plugins
 #
 # If you have a need to examine the community that was passed to the SNMP
@@ -217,7 +217,7 @@ module SNMP  # :nodoc:
 # it will be cached regardless of the community that is used in subsequent
 # requests.  Thus, if you have a need to examine the community in your plugin,
 # don't ask the agent to cache the response.
-# 
+#
 # === "Declining" a request
 #
 # If you're writing a plugin that, in some instances, should completely fail
@@ -289,611 +289,611 @@ module SNMP  # :nodoc:
 #
 
 class Agent  # :doc:
-	DefaultSettings = { :port => 161,
-	                    :max_packet => 8000,
-	                    :logger => Logger.new('/dev/null'),
-	                    :sysContact => "Someone",
-	                    :sysName => "Ruby SNMP agent",
-	                    :sysLocation => "Unknown",
-	                    :community => nil
-	                  }
+  DefaultSettings = { :port => 161,
+                      :max_packet => 8000,
+                      :logger => Logger.new('/dev/null'),
+                      :sysContact => "Someone",
+                      :sysName => "Ruby SNMP agent",
+                      :sysLocation => "Unknown",
+                      :community => nil
+                    }
 
-	# Create a new agent.
-	#
-	# You can provide a list of settings to the new agent, as a hash of
-	# symbols and values.  Currently valid settings (and their defaults)
-	# are as follows:
-	#
-	# [:port]        The UDP port to listen on.  Default: 161
-	# [:max_packet]  The largest UDP packet that will be read.  Default: 8000
-	# [:logger]      A Logger object to write all messages to.  Default: sends all
-	#                messages to /dev/null.
-	# [:sysContact]  A string to provide when an SNMP request is made for
-	#                sysContact.  Default: "Someone"
-	# [:sysName]     A string to provide when an SNMP request is made for
-	#                sysName.  Default: "Ruby SNMP agent"
-	# [:sysLocation] A string to provide when an SNMP request is made for
-	#                sysLocation.  Default: "Unknown"
-	# [:community]   Either a string or array of strings which specify the
-	#                community/communities which this SNMP agent will respond
-	#                to.  The default is nil, which means that the agent will
-	#                respond to any SNMP PDU, regardless of the community name
-	#                encoded in the PDU.
-	#
-	def initialize(settings = {})
-		settings = DefaultSettings.merge(settings)
-		
-		@port = settings[:port]
-		@log = settings[:logger]
-		@max_packet = settings[:max_packet]
-		@community = settings[:community]
-		@socket = nil
-		
-		@mib_tree = MibNodeTree.new(:logger => @log)
-		
-		agent_start_time = Time.now
-		self.add_plugin('1.3.6.1.2.1.1') { {1 => [`uname -a`],
-		                                    3 => [SNMP::TimeTicks.new(((Time.now - agent_start_time) * 100).to_i)],
-		                                    4 => [settings[:sysContact]],
-		                                    5 => [settings[:sysName]],
-		                                    6 => [settings[:sysLocation]]
-		                                   }
-		                                 }
-	end
+  # Create a new agent.
+  #
+  # You can provide a list of settings to the new agent, as a hash of
+  # symbols and values.  Currently valid settings (and their defaults)
+  # are as follows:
+  #
+  # [:port]        The UDP port to listen on.  Default: 161
+  # [:max_packet]  The largest UDP packet that will be read.  Default: 8000
+  # [:logger]      A Logger object to write all messages to.  Default: sends all
+  #                messages to /dev/null.
+  # [:sysContact]  A string to provide when an SNMP request is made for
+  #                sysContact.  Default: "Someone"
+  # [:sysName]     A string to provide when an SNMP request is made for
+  #                sysName.  Default: "Ruby SNMP agent"
+  # [:sysLocation] A string to provide when an SNMP request is made for
+  #                sysLocation.  Default: "Unknown"
+  # [:community]   Either a string or array of strings which specify the
+  #                community/communities which this SNMP agent will respond
+  #                to.  The default is nil, which means that the agent will
+  #                respond to any SNMP PDU, regardless of the community name
+  #                encoded in the PDU.
+  #
+  def initialize(settings = {})
+    settings = DefaultSettings.merge(settings)
 
-	# Handle a new OID.
-	#
-	# See the class documentation for full information on how to use this method.
-	#
-	def add_plugin(base_oid, &block)
- 		raise ArgumentError.new("Must pass a block to add_plugin") unless block_given?
-		@mib_tree.add_node(base_oid, MibNodePlugin.new(:logger => @log, :oid => base_oid, &block))
-	end
+    @port = settings[:port]
+    @log = settings[:logger]
+    @max_packet = settings[:max_packet]
+    @community = settings[:community]
+    @socket = nil
 
-	# Add a directory full of plugins to the agent.
-	#
-	# To make it as simple as possible to provide plugins to the SNMP agent,
-	# you can create a directory and fill it with files containing plugin
-	# code, then tell the agent where to find all that juicy code.
-	#
-	# The files in the plugin directory are simply named after the base OID,
-	# and the contents are the code you want to execute, exactly as you would
-	# put it inside a block.
-	#
-	def add_plugin_dir(dir)
-		orig_verbose = $VERBOSE
-		$VERBOSE = nil
-		Dir.entries(dir).each do |f|
-			@log.info("Looking at potential plugin #{File.join(dir, f)}")
-			if f =~ /^([0-9]\.?)+$/
-				begin
-					self.add_plugin(f, &eval("lambda do\n#{File.read(File.join(dir, f))}\nend\n"))
-				rescue SyntaxError => e
-					@log.warn "Syntax error in #{File.join(dir, f)}: #{e.message}"
-				end
-			elsif f =~ /\.rb$/
-				begin
-					self.instance_eval(File.read(File.join(dir, f)))
-				rescue SyntaxError => e
-					@log.warn "Syntax error in #{File.join(dir, f)}: #{e.message}"
-				rescue Exception => e
-					@log.warn "Some error occured while loading #{File.join(dir, f)}: #{e.message}"
-				end
-			end
-		end
-			
-		$VERBOSE = orig_verbose
-	end
+    @mib_tree = MibNodeTree.new(:logger => @log)
 
-	def add_proxy(base_oid, host, port)
-		@mib_tree.add_node(base_oid, SNMP::MibNodeProxy.new(:base_oid => base_oid,
-		                                                    :host => host,
-		                                                    :port => port,
-		                                                    :logger => @log)
-		                  )
-	end
+    agent_start_time = Time.now
+    self.add_plugin('1.3.6.1.2.1.1') { {1 => [`uname -a`],
+                                        3 => [SNMP::TimeTicks.new(((Time.now - agent_start_time) * 100).to_i)],
+                                        4 => [settings[:sysContact]],
+                                        5 => [settings[:sysName]],
+                                        6 => [settings[:sysLocation]]
+                                       }
+                                     }
+  end
 
-	# Main connection handling loop.
-	#
-	# Call this method when you're ready to respond to some SNMP messages.
-	#
-	# Caution: this method blocks (does not return until it's finished
-	# serving SNMP requests).  As a result, you should run it in a separate
-	# thread or catch one or more signals so that you can actually call
-	# +shutdown+ to stop the agent.
-	def start
-		open_socket if @socket.nil?
+  # Handle a new OID.
+  #
+  # See the class documentation for full information on how to use this method.
+  #
+  def add_plugin(base_oid, &block)
+    raise ArgumentError.new("Must pass a block to add_plugin") unless block_given?
+    @mib_tree.add_node(base_oid, MibNodePlugin.new(:logger => @log, :oid => base_oid, &block))
+  end
 
-		@log.info "SNMP agent running"
-		@socket.listen do |data|
-			begin
-				@log.debug "Received #{data.length} bytes"
-				@log.debug data.inspect
-				
-				message = Message.decode(data)
-				
-				# Community access checks
-				community_ok = false
-				if @community.nil?
-					community_ok = true
-				else
-					@log.debug "Checking community"
-					community_ok = if @community.class == String
-						@log.debug "Checking if #{message.community} is #{@community}"
-						@community == message.community
-					elsif @community.class == Array
-						@log.debug "Checking if #{message.community} is in #{@community.inspect}"
-						@community.include? message.community
-					else
-						@log.error "Invalid setting for :community"
-						false
-					end
-					if community_ok
-						@log.debug "Community OK"
-					else
-						@log.debug "Community invalid"
-					end
-				end
-				
-				if community_ok
-					case message.pdu
-						when GetRequest
-							@log.debug "GetRequest received"
-							response = process_get_request(message)
-						when GetNextRequest
-							@log.debug "GetNextRequest received"
-							response = process_get_next_request(message)
-						else
-							raise SNMP::UnknownMessageError.new("invalid message #{message.inspect}")
-					end
-					encoded_message = response.encode
-					@log.debug encoded_message.inspect
-					encoded_message
-				else
-					nil
-				end
-			rescue SNMP::UnknownMessageError => e
-				@log.error "Unknown SNMP message: #{e.message}"
-				nil
-			rescue IOError => e
-				raise if e.message == 'stream closed' or e.message == 'closed stream'
-				@log.warn "IO Error: #{e.message}"
-				nil
-			rescue DontReplyException => e
-				nil
-			rescue Errno::EBADF
-				raise
-			rescue => e
-				@log.error "Error in handling message: #{e.message}: #{e.backtrace.join("\n")}"
-				nil
-			end
-		end
-	end
+  # Add a directory full of plugins to the agent.
+  #
+  # To make it as simple as possible to provide plugins to the SNMP agent,
+  # you can create a directory and fill it with files containing plugin
+  # code, then tell the agent where to find all that juicy code.
+  #
+  # The files in the plugin directory are simply named after the base OID,
+  # and the contents are the code you want to execute, exactly as you would
+  # put it inside a block.
+  #
+  def add_plugin_dir(dir)
+    orig_verbose = $VERBOSE
+    $VERBOSE = nil
+    Dir.entries(dir).each do |f|
+      @log.info("Looking at potential plugin #{File.join(dir, f)}")
+      if f =~ /^([0-9]\.?)+$/
+        begin
+          self.add_plugin(f, &eval("lambda do\n#{File.read(File.join(dir, f))}\nend\n"))
+        rescue SyntaxError => e
+          @log.warn "Syntax error in #{File.join(dir, f)}: #{e.message}"
+        end
+      elsif f =~ /\.rb$/
+        begin
+          self.instance_eval(File.read(File.join(dir, f)))
+        rescue SyntaxError => e
+          @log.warn "Syntax error in #{File.join(dir, f)}: #{e.message}"
+        rescue Exception => e
+          @log.warn "Some error occured while loading #{File.join(dir, f)}: #{e.message}"
+        end
+      end
+    end
 
-	# Stop the running agent.
-	#
-	# Close the socket and stop the agent from running.  It can be started again
-	# just by calling +start+ again.  You will, of course, need to be catching
-	# signals or be multi-threaded in order to be able to actually call this
-	# method, because +start+ itself is a blocking method.
-	#
-	def shutdown
-		@log.info "SNMP agent stopping"
-		@socket.close
-	end
+    $VERBOSE = orig_verbose
+  end
 
-	# Open the socket.  Call this early if you want to drop elevated
-	# privileges before starting the agent itself.
-	def open_socket
-		@socket = UDPSocketPool.new(@port)
-	end
+  def add_proxy(base_oid, host, port)
+    @mib_tree.add_node(base_oid, SNMP::MibNodeProxy.new(:base_oid => base_oid,
+                                                        :host => host,
+                                                        :port => port,
+                                                        :logger => @log)
+                      )
+  end
 
-	private
-	def process_get_request(message)
-		response = message.response
-		response.pdu.varbind_list.each do |v|
-			@log.debug "GetRequest OID: #{v.name}, #{message.community}"
-			v.value = get_snmp_value(v.name, message.community)
-		end
+  # Main connection handling loop.
+  #
+  # Call this method when you're ready to respond to some SNMP messages.
+  #
+  # Caution: this method blocks (does not return until it's finished
+  # serving SNMP requests).  As a result, you should run it in a separate
+  # thread or catch one or more signals so that you can actually call
+  # +shutdown+ to stop the agent.
+  def start
+    open_socket if @socket.nil?
 
-		response
-	end
+    @log.info "SNMP agent running"
+    @socket.listen do |data|
+      begin
+        @log.debug "Received #{data.length} bytes"
+        @log.debug data.inspect
 
-	def process_get_next_request(message)
-		response = message.response
-		response.pdu.varbind_list.length.times do |idx|
-			v = response.pdu.varbind_list[idx]
-			@log.debug "OID: #{v.name}"
-			v.name = next_oid_in_tree(v.name)
-			@log.debug "pgnr: Next OID is #{v.name.to_s}"
-			if SNMP::EndOfMibView == v.name
-				@log.debug "Setting error status"
-				v.name = ObjectId.new('0')
-				response.pdu.error_status = :noSuchName
-				response.pdu.error_index = idx
-			else
-				@log.debug "Regular value"
-				v.value = get_snmp_value(v.name)
-			end
-		end
-	
-		response
-	end
-	
-	def get_snmp_value(oid, community = nil)
-		@log.debug("get_snmp_value(#{oid.to_s})")
-		data_value = get_mib_entry(oid, community).value
-		
-		if data_value.is_a? ::Integer
-			SNMP::Integer.new(data_value)
-		elsif data_value.is_a? String
-			SNMP::OctetString.new(data_value)
-		elsif data_value.nil?
-			SNMP::NoSuchObject
-		elsif data_value.respond_to? :asn1_type
-			# Assuming that we got given back a literal SNMP type
-			data_value
-		else
-			SNMP::OctetString.new(data_value.to_s)
-		end
-	end
-	
-	def get_mib_entry(oid, community = nil)
-		@log.debug "Looking for MIB entry #{oid.to_s}"
-		oid = ObjectId.new(oid) unless oid.is_a? ObjectId
-		@mib_tree.get_node(oid, community)
-	end
+        message = Message.decode(data)
 
-	def next_oid_in_tree(oid)
-		@log.debug "Looking for the next OID from #{oid.to_s}"
-		oid = ObjectId.new(oid) unless oid.is_a? ObjectId
-		
-		next_oid = @mib_tree.next_oid_in_tree(oid)
-		
-		if next_oid.nil?
-			next_oid = SNMP::EndOfMibView
-		end
-		
-		next_oid
-	end
-		
+        # Community access checks
+        community_ok = false
+        if @community.nil?
+          community_ok = true
+        else
+          @log.debug "Checking community"
+          community_ok = if @community.class == String
+            @log.debug "Checking if #{message.community} is #{@community}"
+            @community == message.community
+          elsif @community.class == Array
+            @log.debug "Checking if #{message.community} is in #{@community.inspect}"
+            @community.include? message.community
+          else
+            @log.error "Invalid setting for :community"
+            false
+          end
+          if community_ok
+            @log.debug "Community OK"
+          else
+            @log.debug "Community invalid"
+          end
+        end
+
+        if community_ok
+          case message.pdu
+            when GetRequest
+              @log.debug "GetRequest received"
+              response = process_get_request(message)
+            when GetNextRequest
+              @log.debug "GetNextRequest received"
+              response = process_get_next_request(message)
+            else
+              raise SNMP::UnknownMessageError.new("invalid message #{message.inspect}")
+          end
+          encoded_message = response.encode
+          @log.debug encoded_message.inspect
+          encoded_message
+        else
+          nil
+        end
+      rescue SNMP::UnknownMessageError => e
+        @log.error "Unknown SNMP message: #{e.message}"
+        nil
+      rescue IOError => e
+        raise if e.message == 'stream closed' or e.message == 'closed stream'
+        @log.warn "IO Error: #{e.message}"
+        nil
+      rescue DontReplyException => e
+        nil
+      rescue Errno::EBADF
+        raise
+      rescue => e
+        @log.error "Error in handling message: #{e.message}: #{e.backtrace.join("\n")}"
+        nil
+      end
+    end
+  end
+
+  # Stop the running agent.
+  #
+  # Close the socket and stop the agent from running.  It can be started again
+  # just by calling +start+ again.  You will, of course, need to be catching
+  # signals or be multi-threaded in order to be able to actually call this
+  # method, because +start+ itself is a blocking method.
+  #
+  def shutdown
+    @log.info "SNMP agent stopping"
+    @socket.close
+  end
+
+  # Open the socket.  Call this early if you want to drop elevated
+  # privileges before starting the agent itself.
+  def open_socket
+    @socket = UDPSocketPool.new(@port)
+  end
+
+  private
+  def process_get_request(message)
+    response = message.response
+    response.pdu.varbind_list.each do |v|
+      @log.debug "GetRequest OID: #{v.name}, #{message.community}"
+      v.value = get_snmp_value(v.name, message.community)
+    end
+
+    response
+  end
+
+  def process_get_next_request(message)
+    response = message.response
+    response.pdu.varbind_list.length.times do |idx|
+      v = response.pdu.varbind_list[idx]
+      @log.debug "OID: #{v.name}"
+      v.name = next_oid_in_tree(v.name)
+      @log.debug "pgnr: Next OID is #{v.name.to_s}"
+      if SNMP::EndOfMibView == v.name
+        @log.debug "Setting error status"
+        v.name = ObjectId.new('0')
+        response.pdu.error_status = :noSuchName
+        response.pdu.error_index = idx
+      else
+        @log.debug "Regular value"
+        v.value = get_snmp_value(v.name)
+      end
+    end
+
+    response
+  end
+
+  def get_snmp_value(oid, community = nil)
+    @log.debug("get_snmp_value(#{oid.to_s})")
+    data_value = get_mib_entry(oid, community).value
+
+    if data_value.is_a? ::Integer
+      SNMP::Integer.new(data_value)
+    elsif data_value.is_a? String
+      SNMP::OctetString.new(data_value)
+    elsif data_value.nil?
+      SNMP::NoSuchObject
+    elsif data_value.respond_to? :asn1_type
+      # Assuming that we got given back a literal SNMP type
+      data_value
+    else
+      SNMP::OctetString.new(data_value.to_s)
+    end
+  end
+
+  def get_mib_entry(oid, community = nil)
+    @log.debug "Looking for MIB entry #{oid.to_s}"
+    oid = ObjectId.new(oid) unless oid.is_a? ObjectId
+    @mib_tree.get_node(oid, community)
+  end
+
+  def next_oid_in_tree(oid)
+    @log.debug "Looking for the next OID from #{oid.to_s}"
+    oid = ObjectId.new(oid) unless oid.is_a? ObjectId
+
+    next_oid = @mib_tree.next_oid_in_tree(oid)
+
+    if next_oid.nil?
+      next_oid = SNMP::EndOfMibView
+    end
+
+    next_oid
+  end
+
 end
 
 class MibNode  # :nodoc:
-	# Create a new MibNode (of some type)
-	#
-	# This is quite a tricky piece of work -- we have to work out whether
-	# we're being asked to create a MibNodeTree (initial_data is a hash or
-	# array), a MibNodeValue (initial_data is some sort of scalar), a
-	# MibNodeProxy (initial_data consists of :host and :port), or a
-	# MibNodePlugin (a block was given).
-	#
-	# What comes out the other end is something that will respond to the
-	# standard MibNode interface, whatever it may be underneath.
-	#
-	def self.create(initial_data = {}, opts = {}, &block)
-		if initial_data.respond_to? :next_oid_in_tree
-			return initial_data
-		end
+  # Create a new MibNode (of some type)
+  #
+  # This is quite a tricky piece of work -- we have to work out whether
+  # we're being asked to create a MibNodeTree (initial_data is a hash or
+  # array), a MibNodeValue (initial_data is some sort of scalar), a
+  # MibNodeProxy (initial_data consists of :host and :port), or a
+  # MibNodePlugin (a block was given).
+  #
+  # What comes out the other end is something that will respond to the
+  # standard MibNode interface, whatever it may be underneath.
+  #
+  def self.create(initial_data = {}, opts = {}, &block)
+    if initial_data.respond_to? :next_oid_in_tree
+      return initial_data
+    end
 
-		if initial_data.instance_of? Array
-			initial_data = initial_data.to_hash
-		end
+    if initial_data.instance_of? Array
+      initial_data = initial_data.to_hash
+    end
 
-		if initial_data.is_a? Hash
-			initial_data.merge! opts
-			if block_given?
-				return MibNodePlugin.new(initial_data, &block)
-			elsif initial_data.keys.member? :host and initial_data.keys.member? :port
-				return MibNodeProxy.new(initial_data)
-			else
-				return MibNodeTree.new(initial_data.merge(opts))
-			end
-		else
-			return MibNodeValue.new({:value => initial_data}.merge(opts))
-		end
-	end
+    if initial_data.is_a? Hash
+      initial_data.merge! opts
+      if block_given?
+        return MibNodePlugin.new(initial_data, &block)
+      elsif initial_data.keys.member? :host and initial_data.keys.member? :port
+        return MibNodeProxy.new(initial_data)
+      else
+        return MibNodeTree.new(initial_data.merge(opts))
+      end
+    else
+      return MibNodeValue.new({:value => initial_data}.merge(opts))
+    end
+  end
 end
 
 class MibNodeTree < MibNode  # :nodoc:
-	def initialize(initial_data = {})
-		@log = initial_data.keys.include?(:logger) ? initial_data.delete(:logger) : Logger.new('/dev/null')
-		@subnodes = Hash.new { |h,k| h[k] = SNMP::MibNodeTree.new(:logger => @log) }
+  def initialize(initial_data = {})
+    @log = initial_data.keys.include?(:logger) ? initial_data.delete(:logger) : Logger.new('/dev/null')
+    @subnodes = Hash.new { |h,k| h[k] = SNMP::MibNodeTree.new(:logger => @log) }
 
-		initial_data.keys.each do |k|
-			raise ArgumentError.new("MIB key #{k} is not an integer") unless k.is_a? ::Integer
-			@subnodes[k] = MibNode.create(initial_data[k], :logger => @log)
-		end
-	end
+    initial_data.keys.each do |k|
+      raise ArgumentError.new("MIB key #{k} is not an integer") unless k.is_a? ::Integer
+      @subnodes[k] = MibNode.create(initial_data[k], :logger => @log)
+    end
+  end
 
-	def to_hash
-		output = {}
-		keys.each do |k|
-			output[k] = @subnodes[k].respond_to?(:to_hash) ? @subnodes[k].to_hash : @subnodes[k]
-		end
-		
-		output
-	end
+  def to_hash
+    output = {}
+    keys.each do |k|
+      output[k] = @subnodes[k].respond_to?(:to_hash) ? @subnodes[k].to_hash : @subnodes[k]
+    end
 
-	def empty?
-		length == 0
-	end
+    output
+  end
 
-	def value
-		nil
-	end
-	
-	def get_node(oid, community = nil)
-		oid = ObjectId.new(oid)
-		@log.debug("get_node(#{oid.to_s})")
+  def empty?
+    length == 0
+  end
 
-		next_idx = oid.shift
-		if next_idx.nil?
-			# End of the road, bud
-			return self
-		else
-			return sub_node(next_idx).get_node(oid, community)
-		end
-	end
-	
-	def add_node(oid, node)
-		oid = ObjectId.new(oid) unless oid.is_a? ObjectId
-		@log.debug("Adding a #{node.class} at #{oid.to_s}")
+  def value
+    nil
+  end
 
-		sub = oid.shift
+  def get_node(oid, community = nil)
+    oid = ObjectId.new(oid)
+    @log.debug("get_node(#{oid.to_s})")
 
-		if oid.length == 0
-			if @subnodes.has_key? sub
-				raise ArgumentError.new("OID #{oid} is already occupied by something; cannot put a node here")
-			else
-				@log.debug("Inserted")
-				@subnodes[sub] = node
-				@log.debug("#{self.object_id}.subnodes[#{sub}] is now a #{@subnodes[sub].class}")
-			end
-		else
-			@subnodes[sub].add_node(oid, node)
-		end
-	end
+    next_idx = oid.shift
+    if next_idx.nil?
+      # End of the road, bud
+      return self
+    else
+      return sub_node(next_idx).get_node(oid, community)
+    end
+  end
 
-	# Return the path down the 'left' side of the MIB tree from this point.
-	# The 'left' is, of course, the smallest node in each subtree until we
-	# get to a leaf.  It is possible that the subtree doesn't contain any
-	# actual data; in this instance, left_path will return nil to indicate
-	# "no tree here, look somewhere else".
-	def left_path()
-		@log.debug("left_path")
-		path = nil
-		
-		keys.sort.each do |next_idx|
-			@log.debug("Boink (#{next_idx})")
-			# Dereference into the subtree. Let's see what we've got here, shall we?
-			next_node = sub_node(next_idx)
-		
-			path = next_node.left_path()
-			unless path.nil?
-				# Add ourselves to the front of the path, and we're done
-				path.unshift(next_idx)
-				return path
-			end
-		end
-		
-		# We chewed through all the keys and all the subtrees were completely
-		# empty.  Bugger.
-		return nil
-	end
+  def add_node(oid, node)
+    oid = ObjectId.new(oid) unless oid.is_a? ObjectId
+    @log.debug("Adding a #{node.class} at #{oid.to_s}")
 
-	# Return the next OID strictly larger than the given OID from this node.
-	# Returns nil if there is no larger OID in the subtree.
-	def next_oid_in_tree(oid)
-		@log.debug("MibNodeTree#next_oid_in_tree(#{oid})")
-		oid = ObjectId.new(oid)
+    sub = oid.shift
 
-		# End of the line, bub
-		return self.left_path if oid.length == 0
+    if oid.length == 0
+      if @subnodes.has_key? sub
+        raise ArgumentError.new("OID #{oid} is already occupied by something; cannot put a node here")
+      else
+        @log.debug("Inserted")
+        @subnodes[sub] = node
+        @log.debug("#{self.object_id}.subnodes[#{sub}] is now a #{@subnodes[sub].class}")
+      end
+    else
+      @subnodes[sub].add_node(oid, node)
+    end
+  end
 
-		sub = oid.shift
+  # Return the path down the 'left' side of the MIB tree from this point.
+  # The 'left' is, of course, the smallest node in each subtree until we
+  # get to a leaf.  It is possible that the subtree doesn't contain any
+  # actual data; in this instance, left_path will return nil to indicate
+  # "no tree here, look somewhere else".
+  def left_path()
+    @log.debug("left_path")
+    path = nil
 
-		next_oid = sub_node(sub).next_oid_in_tree(oid)
-		
-		@log.debug("Got #{next_oid.inspect} from call to subnodes[#{sub}].next_oid_in_tree(#{oid.to_s})")
-		
-		if next_oid.nil?
-			@log.debug("No luck asking subtree #{sub}; how about the next subtree(s)?")
-			sub = @subnodes.keys.sort.find { |k|
-				if k > sub
-					@log.debug("Examining subtree #{k}")
-					!sub_node(k).left_path.nil?
-				else
-					false
-				end
-			}
-			
-			if sub.nil?
-				@log.debug("This node has no valid next nodes")
-				return nil
-			end
-			
-			next_oid = sub_node(sub).left_path
-		end
-		
-		if next_oid.nil?
-			# We've got no next node below us
-			return nil
-		else
-			# We've got a next OID to go to; append ourselves to the front and
-			# send it back up the line
-			next_oid.unshift(sub)
-			@log.debug("The next OID for #{oid.inspect} is #{next_oid.inspect}")
-			return ObjectId.new(next_oid)
-		end
-	end
+    keys.sort.each do |next_idx|
+      @log.debug("Boink (#{next_idx})")
+      # Dereference into the subtree. Let's see what we've got here, shall we?
+      next_node = sub_node(next_idx)
 
-	private
-	def sub_node(idx)
-		@log.debug("sub_node(#{idx.inspect})")
-		raise ArgumentError.new("Index [#{idx}] must be an integer in a MIB tree") unless idx.is_a? ::Integer
-		
-		# Dereference into the subtree. Let's see what we've got here, shall we?
-		@log.debug("#{self.object_id}.subnodes[#{idx}] is a #{@subnodes[idx].class}")
-		@subnodes[idx]
-	end
+      path = next_node.left_path()
+      unless path.nil?
+        # Add ourselves to the front of the path, and we're done
+        path.unshift(next_idx)
+        return path
+      end
+    end
 
-	def keys
-		@subnodes.keys
-	end
-	
-	def length
-		@subnodes.length
-	end
+    # We chewed through all the keys and all the subtrees were completely
+    # empty.  Bugger.
+    return nil
+  end
+
+  # Return the next OID strictly larger than the given OID from this node.
+  # Returns nil if there is no larger OID in the subtree.
+  def next_oid_in_tree(oid)
+    @log.debug("MibNodeTree#next_oid_in_tree(#{oid})")
+    oid = ObjectId.new(oid)
+
+    # End of the line, bub
+    return self.left_path if oid.length == 0
+
+    sub = oid.shift
+
+    next_oid = sub_node(sub).next_oid_in_tree(oid)
+
+    @log.debug("Got #{next_oid.inspect} from call to subnodes[#{sub}].next_oid_in_tree(#{oid.to_s})")
+
+    if next_oid.nil?
+      @log.debug("No luck asking subtree #{sub}; how about the next subtree(s)?")
+      sub = @subnodes.keys.sort.find { |k|
+        if k > sub
+          @log.debug("Examining subtree #{k}")
+          !sub_node(k).left_path.nil?
+        else
+          false
+        end
+      }
+
+      if sub.nil?
+        @log.debug("This node has no valid next nodes")
+        return nil
+      end
+
+      next_oid = sub_node(sub).left_path
+    end
+
+    if next_oid.nil?
+      # We've got no next node below us
+      return nil
+    else
+      # We've got a next OID to go to; append ourselves to the front and
+      # send it back up the line
+      next_oid.unshift(sub)
+      @log.debug("The next OID for #{oid.inspect} is #{next_oid.inspect}")
+      return ObjectId.new(next_oid)
+    end
+  end
+
+  private
+  def sub_node(idx)
+    @log.debug("sub_node(#{idx.inspect})")
+    raise ArgumentError.new("Index [#{idx}] must be an integer in a MIB tree") unless idx.is_a? ::Integer
+
+    # Dereference into the subtree. Let's see what we've got here, shall we?
+    @log.debug("#{self.object_id}.subnodes[#{idx}] is a #{@subnodes[idx].class}")
+    @subnodes[idx]
+  end
+
+  def keys
+    @subnodes.keys
+  end
+
+  def length
+    @subnodes.length
+  end
 end
 
 class MibNodePlugin < MibNode  # :nodoc:
-	def initialize(opts = {}, &block)
-		@log = opts[:logger].nil? ? Logger.new('/dev/null') : opts[:logger]
-		@plugin_timeout = opts[:plugin_timeout] ? 2 : opts[:plugin_timeout]
-		@proc = block
-		@oid = opts[:oid]
-		@cached_value = nil
-		@cache_until = 0
-	end
+  def initialize(opts = {}, &block)
+    @log = opts[:logger].nil? ? Logger.new('/dev/null') : opts[:logger]
+    @plugin_timeout = opts[:plugin_timeout] ? 2 : opts[:plugin_timeout]
+    @proc = block
+    @oid = opts[:oid]
+    @cached_value = nil
+    @cache_until = 0
+  end
 
-	def value
-		nil
-	end
+  def value
+    nil
+  end
 
-	def to_hash
-		plugin_value.to_hash
-	end
-	
-	def get_node(oid, community = nil)
-		@log.debug("plugin get_node(#{oid.to_s}, #{community.to_s})")
-		val = plugin_value(community)
-		val.get_node(oid, community) if val.respond_to? :get_node
-	end
+  def to_hash
+    plugin_value.to_hash
+  end
 
-	def add_node(oid, node)
-		raise ArgumentError.new("Adding this plugin would encroach on the subtree of an existing plugin")
-	end
+  def get_node(oid, community = nil)
+    @log.debug("plugin get_node(#{oid.to_s}, #{community.to_s})")
+    val = plugin_value(community)
+    val.get_node(oid, community) if val.respond_to? :get_node
+  end
 
-	def left_path
-		plugin_value.left_path
-	end
+  def add_node(oid, node)
+    raise ArgumentError.new("Adding this plugin would encroach on the subtree of an existing plugin")
+  end
 
-	def next_oid_in_tree(oid)
-		val = plugin_value
-		val.next_oid_in_tree(oid) if val.respond_to? :next_oid_in_tree
-	end
-	
-	private
-	def plugin_value community = nil
-		@log.debug("Getting plugin value")
-		if Time.now.to_i > @cache_until
-			begin
-				plugin_data = nil
-				Timeout::timeout(@plugin_timeout) do
-					plugin_data = @proc.call community
-				end
-			rescue Timeout::Error
-				@log.warn("Plugin for OID #{@oid} exceeded the timeout")
-				return MibNodeValue.new(:logger => @log, :value => nil)
-			rescue DontReplyException => e
-				# Just pass it on up the chain
-				raise e
-			rescue => e
-				@log.warn("Plugin for OID #{@oid} raised an exception: #{e.message}\n#{e.backtrace.join("\n")}")
-				return MibNodeValue.new(:logger => @log, :value => nil)
-			end
+  def left_path
+    plugin_value.left_path
+  end
 
-			if plugin_data.instance_of? Array
-				plugin_data = plugin_data.to_hash
-			end
+  def next_oid_in_tree(oid)
+    val = plugin_value
+    val.next_oid_in_tree(oid) if val.respond_to? :next_oid_in_tree
+  end
 
-			if plugin_data.is_a? Hash
-				unless plugin_data[:cache].nil?
-					@cache_until = Time.now.to_i + plugin_data[:cache]
-					plugin_data.delete :cache
-				end
-			end
-			
-			@cached_value = MibNode.create(plugin_data, :logger => @log)
-		end
-		
-		@cached_value
-	end
+  private
+  def plugin_value community = nil
+    @log.debug("Getting plugin value")
+    if Time.now.to_i > @cache_until
+      begin
+        plugin_data = nil
+        Timeout::timeout(@plugin_timeout) do
+          plugin_data = @proc.call community
+        end
+      rescue Timeout::Error
+        @log.warn("Plugin for OID #{@oid} exceeded the timeout")
+        return MibNodeValue.new(:logger => @log, :value => nil)
+      rescue DontReplyException => e
+        # Just pass it on up the chain
+        raise e
+      rescue => e
+        @log.warn("Plugin for OID #{@oid} raised an exception: #{e.message}\n#{e.backtrace.join("\n")}")
+        return MibNodeValue.new(:logger => @log, :value => nil)
+      end
+
+      if plugin_data.instance_of? Array
+        plugin_data = plugin_data.to_hash
+      end
+
+      if plugin_data.is_a? Hash
+        unless plugin_data[:cache].nil?
+          @cache_until = Time.now.to_i + plugin_data[:cache]
+          plugin_data.delete :cache
+        end
+      end
+
+      @cached_value = MibNode.create(plugin_data, :logger => @log)
+    end
+
+    @cached_value
+  end
 end
 
 class MibNodeProxy < MibNode  # :nodoc:
-	def initialize(opts)
-		@base_oid = SNMP::ObjectId.new(opts[:base_oid])
-		@manager = SNMP::Manager.new(:Host => opts[:host], :Port => opts[:port])
-		@log = opts[:logger] ? opts[:logger] : Logger.new('/dev/null')
-	end
-	
-	def get_node(oid, community = nil)
-		oid = SNMP::ObjectId.new(oid) unless oid.is_a? SNMP::ObjectId
-		
-		complete_oid = ObjectId.new(@base_oid + oid)
-		
-		rv = @manager.get([complete_oid])
-		
-		MibNodeValue.new(:value => rv.varbind_list[0].value)
-	end
-	
-	def add_node(oid, node)
-		raise ArgumentError.new("Cannot add a node inside a MibNodeProxy")
-	end
+  def initialize(opts)
+    @base_oid = SNMP::ObjectId.new(opts[:base_oid])
+    @manager = SNMP::Manager.new(:Host => opts[:host], :Port => opts[:port])
+    @log = opts[:logger] ? opts[:logger] : Logger.new('/dev/null')
+  end
 
-	def left_path()
-		next_oid_in_tree(@base_oid)
-	end
+  def get_node(oid, community = nil)
+    oid = SNMP::ObjectId.new(oid) unless oid.is_a? SNMP::ObjectId
 
-	def next_oid_in_tree(oid)
-		oid = SNMP::ObjectId.new(oid) unless oid.is_a? SNMP::ObjectId
-		
-		complete_oid = ObjectId.new(@base_oid + oid)
-		
-		rv = @manager.get_next([complete_oid])
-		
-		next_oid = rv.varbind_list[0].name
-		
-		if next_oid.subtree_of? @base_oid
-			# Remember to only return the interesting subtree portion!
-			next_oid[@base_oid.length..-1]
-		else
-			nil
-		end
-	end
+    complete_oid = ObjectId.new(@base_oid + oid)
+
+    rv = @manager.get([complete_oid])
+
+    MibNodeValue.new(:value => rv.varbind_list[0].value)
+  end
+
+  def add_node(oid, node)
+    raise ArgumentError.new("Cannot add a node inside a MibNodeProxy")
+  end
+
+  def left_path()
+    next_oid_in_tree(@base_oid)
+  end
+
+  def next_oid_in_tree(oid)
+    oid = SNMP::ObjectId.new(oid) unless oid.is_a? SNMP::ObjectId
+
+    complete_oid = ObjectId.new(@base_oid + oid)
+
+    rv = @manager.get_next([complete_oid])
+
+    next_oid = rv.varbind_list[0].name
+
+    if next_oid.subtree_of? @base_oid
+      # Remember to only return the interesting subtree portion!
+      next_oid[@base_oid.length..-1]
+    else
+      nil
+    end
+  end
 end
 
 class MibNodeValue < MibNode  # :nodoc:
-	include Comparable
-	
-	attr_reader :value
-	
-	def initialize(opts)
-		@value = opts[:value]
-		@log = Logger.new('/dev/null')
-	end
+  include Comparable
 
-	def <=>(other)
-		@value.nil? or other.nil? ? 0 : @value <=> other.value
-	end
+  attr_reader :value
 
-	def get_node(oid, community = nil)
-		oid.length == 0 ? self : MibNodeTree.new
-	end
-	
-	def add_node(oid, node)
-		RuntimeError.new("You really shouldn't do that")
-	end
-	
-	def left_path()
-		value.nil? ? nil : []
-	end
-	
-	def next_oid_in_tree(oid)
-		nil
-	end
+  def initialize(opts)
+    @value = opts[:value]
+    @log = Logger.new('/dev/null')
+  end
+
+  def <=>(other)
+    @value.nil? or other.nil? ? 0 : @value <=> other.value
+  end
+
+  def get_node(oid, community = nil)
+    oid.length == 0 ? self : MibNodeTree.new
+  end
+
+  def add_node(oid, node)
+    RuntimeError.new("You really shouldn't do that")
+  end
+
+  def left_path()
+    value.nil? ? nil : []
+  end
+
+  def next_oid_in_tree(oid)
+    nil
+  end
 end
 
 # To signal that the agent received a message that it didn't know how to
@@ -904,89 +904,89 @@ end
 end
 
 class Array  # :nodoc:
-	def keys
-		k = []
-		length.times { |v| k << v }
-		k
-	end
-	
-	def to_hash
-		h = {}
-		keys.each {|k| h[k] = self[k]}
-		h
-	end
+  def keys
+    k = []
+    length.times { |v| k << v }
+    k
+  end
+
+  def to_hash
+    h = {}
+    keys.each {|k| h[k] = self[k]}
+    h
+  end
 end
 
 class NilClass  # :nodoc:
-	def value
-		nil
-	end
+  def value
+    nil
+  end
 end
 
 class UDPSocketPool
-	def initialize(port)
-		@socket_list = {}
-		@port = port
-		
-		init_socket_list
-	end
+  def initialize(port)
+    @socket_list = {}
+    @port = port
 
-	def self.listen(port, &block)
-		pool = UDPSocketPool.new(port)
-		
-		pool.listen(&block)
-	end
-	
-	def listen
-		raise RuntimeError.new("No block given to UDPSocketPool#listen") unless block_given?
+    init_socket_list
+  end
 
-		loop do
-			ready = IO::select(@socket_list.values)[0]
-		
-			ready.each do |s|
-				data, origin = s.recvfrom(65535)
-				if s == @socket_list['0.0.0.0']
-					# We don't explicitly handle data received by the 'any'
-					# socket, we just use it to trigger a rescan
-					init_socket_list
-				else
-					result = yield(data)
-					s.send(result, 0, origin[3], origin[1]) unless result.nil?
-				end
-			end
-		end
-	end
-	
-	def close
-		@socket_list.values.each {|s| s.close}
-	end
-		
-	private
-	def init_socket_list
-		addrs = address_list
-		
-		addrs.each do |a|
-			next if @socket_list.keys.include? a
-			@socket_list[a] = ::UDPSocket.new
-			@socket_list[a].setsockopt(Socket::SOL_SOCKET,
-			                           Socket::SO_REUSEADDR, 
-			                           1)
-			@socket_list[a].bind(a, @port)
-		end
-	end
-			
-	def address_list
-		list = ['0.0.0.0']
-		
-		# This should be illegal -- mjp
-		`/sbin/ifconfig`.grep(/inet addr/).each do |line|
-			if line =~ /^\s+inet addr:([0-9.]+)\s/
-				list << $1
-			end
-		end
-		
-		list
-	end
+  def self.listen(port, &block)
+    pool = UDPSocketPool.new(port)
+
+    pool.listen(&block)
+  end
+
+  def listen
+    raise RuntimeError.new("No block given to UDPSocketPool#listen") unless block_given?
+
+    loop do
+      ready = IO::select(@socket_list.values)[0]
+
+      ready.each do |s|
+        data, origin = s.recvfrom(65535)
+        if s == @socket_list['0.0.0.0']
+          # We don't explicitly handle data received by the 'any'
+          # socket, we just use it to trigger a rescan
+          init_socket_list
+        else
+          result = yield(data)
+          s.send(result, 0, origin[3], origin[1]) unless result.nil?
+        end
+      end
+    end
+  end
+
+  def close
+    @socket_list.values.each {|s| s.close}
+  end
+
+  private
+  def init_socket_list
+    addrs = address_list
+
+    addrs.each do |a|
+      next if @socket_list.keys.include? a
+      @socket_list[a] = ::UDPSocket.new
+      @socket_list[a].setsockopt(Socket::SOL_SOCKET,
+                                 Socket::SO_REUSEADDR,
+                                 1)
+      @socket_list[a].bind(a, @port)
+    end
+  end
+
+  def address_list
+    list = ['0.0.0.0']
+
+    # This should be illegal -- mjp
+    `/sbin/ifconfig`.grep(/inet addr/).each do |line|
+      if line =~ /^\s+inet addr:([0-9.]+)\s/
+        list << $1
+      end
+    end
+
+    list
+  end
 end
 
 # Exception to be raised by a plugin if it really, really, really doesn't
@@ -995,7 +995,7 @@ class DontReplyException < Exception
 end
 
 if __FILE__ == $0
-	agent = SNMP::Agent.new(:port => 1061, :logger => Logger.new(STDOUT))
-	trap("INT") { agent.shutdown }
-	agent.start
+  agent = SNMP::Agent.new(:port => 1061, :logger => Logger.new(STDOUT))
+  trap("INT") { agent.shutdown }
+  agent.start
 end
