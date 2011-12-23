@@ -50,7 +50,7 @@ module SNMP  # :nodoc:
 #
 #    daemon = SNMP::Daemon.new(:port => 16161, :logger => Logger.new(STDOUT))
 #    daemon.add_plugin('1.3.6.1.2.1.25.1.1.0') do
-#      SNMP::TimeTicks.new(File.read('/proc/uptime').split(' ')[0].to_f * 100).to_i)
+#      SNMP::TimeTicks.new(File.read('/proc/uptime').split(' ')[0].to_f * 100).to_i
 #    end
 #    daemon.start()
 #
@@ -405,6 +405,7 @@ class Daemon  # :doc:
     open_socket if @socket.nil?
 
     @log.info "SNMP daemon running"
+
     @socket.listen do |data|
       begin
         @log.debug "Received #{data.length} bytes"
@@ -981,6 +982,13 @@ class UDPSocketPool
     # This should be illegal -- mjp
     `/sbin/ifconfig`.grep(/inet addr/).each do |line|
       if line =~ /^\s+inet addr:([0-9.]+)\s/
+        list << $1
+      end
+    end
+
+    # BSD support
+    `/sbin/ifconfig`.grep(/inet \d+/).each do |line|
+      if line =~ /^\s+inet ([0-9.]+)\s/
         list << $1
       end
     end
