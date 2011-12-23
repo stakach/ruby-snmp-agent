@@ -9,13 +9,13 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Matthew Palmer"]
-  s.date = %q{2011-12-13}
+  s.date = %q{2011-12-23}
   s.default_executable = %q{snmpd}
   s.description = %q{Write SNMP agents (servers) in pure Ruby}
   s.email = %q{mpalmer@hezmatt.org}
   s.executables = ["snmpd"]
   s.extra_rdoc_files = [
-    "README.rdoc",
+    "README.markdown",
     "TODO"
   ]
   s.files = [
@@ -23,12 +23,12 @@ Gem::Specification.new do |s|
     ".document",
     "Gemfile",
     "Gemfile.lock",
-    "README.rdoc",
+    "README.markdown",
     "Rakefile",
     "TODO",
-    "VERSION",
     "bin/snmpd",
-    "lib/snmp/agent.rb",
+    "lib/snmp/daemon.rb",
+    "ruby-snmp-agent.gemspec",
     "test/agent_test.rb",
     "test/mib_node_test.rb",
     "test/misc_test.rb",
